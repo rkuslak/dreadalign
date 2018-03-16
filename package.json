@@ -1,0 +1,36 @@
+{
+    "name": "dreadalign",
+    "displayName": "DreadAlign",
+    "description": "Align text in a easy, pain-free manner.",
+    "version": "0.0.1",
+    "publisher": "ronkuslak",
+    "engines": {
+        "vscode": "^1.21.0"
+    },
+    "categories": [
+        "Formatters"
+    ],
+    "activationEvents": [
+        "onCommand:extension.loadDreadAlign"
+    ],
+    "main": "./out/dreadalign",
+    "contributes": {
+        "commands": [{
+            "command": "extension.loadDreadAlign",
+            "title": "DreadAlign: Align Text"
+        }]
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "postinstall": "node ./node_modules/vscode/bin/install",
+        "test": "npm run compile && node ./node_modules/vscode/bin/test"
+    },
+    "devDependencies": {
+        "typescript": "^2.6.1",
+        "vscode": "^1.1.6",
+        "@types/node": "^7.0.43",
+        "@types/mocha": "^2.2.42"
+    }
+}
