@@ -4,6 +4,9 @@
     "description": "Align text in a easy, pain-free manner.",
     "version": "0.0.1",
     "publisher": "ronkuslak",
+    "repository": {
+        "url": "https://github.com/rkuslak/dreadalign"
+    },
     "engines": {
         "vscode": "^1.21.0"
     },

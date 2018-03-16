@@ -26,8 +26,12 @@ function alignText(padding:number, delimiter:string, text:Array<string>):string[
 
     // Use the string parts to for a full string and push it to our results
     // array:
-    splitStrings.forEach((lineParts:string[]) => {
-        let formatedString:string = ' '.repeat(padding);
+    splitStrings.forEach((lineParts:string[], idx:number) => {
+        let formatedString:string = ''
+
+        // Do not push in on first line: use selection start as delimiter
+        if (idx > 0) { formatedString += ' '.repeat(padding); }
+
         let linePartsCount = lineParts.length - 1;
         lineParts.forEach((linePart:string, index:number) => {
             linePart = linePart.trim();
@@ -50,7 +54,7 @@ function alignCurrentSelection(delimiter:string) {
     // TODO: Regex
     // TODO: multiple selections
     let editor = vscode.window.activeTextEditor;
-    let selected:(vscode.Selection) = editor.selection;
+    /*let selected:(vscode.Selection) = editor.selection;
     let lineStart = selected.start.line
     let lineStop = selected.end.line
 
@@ -64,10 +68,17 @@ function alignCurrentSelection(delimiter:string) {
     if (selected.end.character == 0) {
         text.pop();
         text.push('\n');
-    }
+    }*/
 
-    let fixedText = alignText(selected.start.character, delimiter, text);
-    let range = new vscode.Range(selected.start, selected.end);
+    let rangeStart = editor.selection.start;
+    let rangeEnd = editor.selection.end;
+    let range:vscode.Range = new vscode.Range(rangeStart, rangeEnd);
+
+    let text = editor.document.getText(range).split('\n');
+    let paddingText = text[0].match(/^\s*/)[0];
+    let padding = rangeStart.character + (paddingText.length);
+
+    let fixedText = alignText(padding, delimiter, text);
 
     // Replace selected text with aligned text:
     editor.edit( (builder:vscode.TextEditorEdit) => {
@@ -88,7 +99,7 @@ export function activate(context: vscode.ExtensionContext) {
     // });
     let disposable = vscode.commands.registerCommand('extension.loadDreadAlign', () => {
         let editor = vscode.window.activeTextEditor;
-        if (! editor || editor.selection.isEmpty) {
+        if (! editor || editor.selection.isEmpty || editor.selection.isSingleLine ) {
             console.log(`No editor or selection found, returning`);
             return;
         }
