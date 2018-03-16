@@ -9,9 +9,6 @@ function alignText(padding:number, delimiter:string, text:Array<string>):string[
     let rowSizes:Array<number> = new Array<number>();
 
     // Create an array of strings split by the delimiter
-    // TODO: Appears that if the string begins with the delimiter, "unexpected"
-    //  behavior happens. See if true for multiple in-string delimiters with
-    //  nothing between them?
     for(let x = 0; x < text.length; x++) {
         let line = text[x].trim();
         let lineParts = line.split(delimiter);
@@ -49,6 +46,36 @@ function alignText(padding:number, delimiter:string, text:Array<string>):string[
     return formatedStrings;
 }
 
+function alignCurrentSelection(delimiter:string) {
+    // TODO: Regex
+    // TODO: multiple selections
+    let editor = vscode.window.activeTextEditor;
+    let selected:(vscode.Selection) = editor.selection;
+    let lineStart = selected.start.line
+    let lineStop = selected.end.line
+
+
+    let text:Array<string> = new Array<string>();
+    for (let x = lineStart; x <= lineStop; x++) {
+        let line = editor.document.lineAt(x).text
+        text.push(line);
+    }
+    // if we are at the first character of a new line, ignore it:
+    if (selected.end.character == 0) {
+        text.pop();
+        text.push('\n');
+    }
+
+    let fixedText = alignText(selected.start.character, delimiter, text);
+    let range = new vscode.Range(selected.start, selected.end);
+
+    // Replace selected text with aligned text:
+    editor.edit( (builder:vscode.TextEditorEdit) => {
+        // TODO: Use current documents EOL preference?
+        builder.replace(range, fixedText.join('\n'))
+    })
+}
+
 export function activate(context: vscode.ExtensionContext) {
     // The command has been defined in the package.json file
     // Now provide the implementation of the command with  registerCommand
@@ -75,31 +102,7 @@ export function activate(context: vscode.ExtensionContext) {
                     console.log('No delimiter, returning...');
                     return;
                 }
-
-                let selected:(vscode.Selection) = editor.selection;
-                let lineStart = selected.start.line
-                let lineStop = selected.end.line
-
-
-                let text:Array<string> = new Array<string>();
-                for (let x = lineStart; x <= lineStop; x++) {
-                    let line = editor.document.lineAt(x).text
-                    text.push(line);
-                }
-                // if we are at the first character of a new line, ignore it:
-                if (selected.end.character == 0) {
-                    text.pop();
-                    text.push('\n');
-                }
-
-                let fixedText = alignText(selected.start.character, delimiter, text);
-                let range = new vscode.Range(selected.start, selected.end);
-
-                // Replace selected text with aligned text:
-                editor.edit( (builder:vscode.TextEditorEdit) => {
-                    // TODO: Use current documents EOL preference?
-                    builder.replace(range, fixedText.join('\n'))
-                })
+                alignCurrentSelection(delimiter);
             });
         });
 
