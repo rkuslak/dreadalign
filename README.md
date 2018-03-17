@@ -9,16 +9,32 @@ to vscode alignment.
 
 Allows alignment based on arbitrary characters.
 
+# Usage
+
+Once the extension is loaded, you need simply highlight the range of text you
+wish to format and use the command "DreadAlign: Align Text". It will then ask
+you for the character (or characters) you wish to use as the "delimiter," and
+begin splitting the lines at these characters. The split ranges will be
+space-padded such that they align.
+
 ## Known Issues
 
-None as of this moment.
+Currently, there is much work left to be done but it is functional enough I use
+it daily. Currently I plan to add support for formatting only 1 instance of
+the delimiters.
 
 ## TODO
 
+* Support for single-instance of delimiter in range ala EasyAlign
+* Add support for "common" delimiters without specifying at run time (',', '=', etc), and allow them to be keybindable
 * Add support for regular expressions as a delimiter
-* Add support for "common" delimiters without specifying at run time (',', '=', etc)
 
 ## Release Notes
+
+### 0.0.2
+
+* Enhancements to the formatting logic
+* Support for indented selections starting in the middle of the line
 
 ### 0.0.1
 

@@ -12,10 +12,8 @@ function alignText(padding:number, delimiter:string, text:Array<string>):string[
     padding = padding + (paddingText.length);
 
     // Create an array of strings split by the delimiter
-    // for(let x = 0; x < text.length; x++) {
     text.forEach( (line:string) => {
-        line = line.trim();
-        let lineParts = line.split(delimiter);
+        let lineParts = line.trim().split(delimiter);
         if (lineParts.length > 1) {
             lineParts.forEach((linePart:string, linePartIndex:number) => {
                 // Place size of current linePart in hash map as size if larger
@@ -31,11 +29,13 @@ function alignText(padding:number, delimiter:string, text:Array<string>):string[
             })
         }
         linesSplit.push(lineParts);
-    }
+    });
 
     // Use the string parts to for a full string and push it to our results
     // array:
     linesSplit.forEach((line:string[], lineIndex:number) => {
+        // Retains the newly-formated string that combines each line part
+        // with the delimiter:
         let formatedString:string = ''
 
         // Do not push in on first line: use selection start as delimiter
