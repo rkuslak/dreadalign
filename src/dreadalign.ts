@@ -5,44 +5,57 @@ function alignText(padding:number, delimiter:string, text:Array<string>):string[
     // each strimg will have the "padding" value added to it prior to return.
 
     let formatedStrings:string[] = [];
-    let splitStrings:Array<string[]> = new Array<string[]>();
+    let linesSplit:Array<string[]> = new Array<string[]>();
     let rowSizes:Array<number> = new Array<number>();
 
+    let paddingText = text[0].match(/^\s*/)[0];
+    padding = padding + (paddingText.length);
+
     // Create an array of strings split by the delimiter
-    for(let x = 0; x < text.length; x++) {
-        let line = text[x].trim();
+    // for(let x = 0; x < text.length; x++) {
+    text.forEach( (line:string) => {
+        line = line.trim();
         let lineParts = line.split(delimiter);
         if (lineParts.length > 1) {
-            lineParts.forEach((linePart:string, index:number) => {
-                if (!rowSizes[index]) { rowSizes[index] = linePart.length; }
+            lineParts.forEach((linePart:string, linePartIndex:number) => {
+                // Place size of current linePart in hash map as size if larger
+                // than current, or if there is no definition for this 
+                // linePartIndex:
+                if (!rowSizes[linePartIndex]) {
+                    rowSizes[linePartIndex] = linePart.length;
+                }
 
-                if (rowSizes[index] < linePart.length) {
-                    rowSizes[index] = linePart.length;
+                if (rowSizes[linePartIndex] < linePart.length) {
+                    rowSizes[linePartIndex] = linePart.length;
                 }
             })
         }
-        splitStrings.push(lineParts);
+        linesSplit.push(lineParts);
     }
 
     // Use the string parts to for a full string and push it to our results
     // array:
-    splitStrings.forEach((lineParts:string[], idx:number) => {
+    linesSplit.forEach((line:string[], lineIndex:number) => {
         let formatedString:string = ''
 
         // Do not push in on first line: use selection start as delimiter
-        if (idx > 0) { formatedString += ' '.repeat(padding); }
+        if (lineIndex > 0) {
+            formatedString += ' '.repeat(padding);
+        } else {
+            formatedString += paddingText;
+        }
 
-        let linePartsCount = lineParts.length - 1;
-        lineParts.forEach((linePart:string, index:number) => {
+        let linePartsCount = line.length - 1;
+        line.forEach((linePart:string, linePartIndex:number) => {
             linePart = linePart.trim();
 
             // TODO: Configuration option for padding delimiter
-            if (index > 0) { formatedString += ' ' + delimiter + ' '; }
+            if (linePartIndex > 0) { formatedString += ' ' + delimiter + ' '; }
             formatedString += linePart
 
             // Only append space if remaining elements to add to line:
-            if (index < linePartsCount)
-                formatedString += ' '.repeat(rowSizes[index] -  linePart.length);
+            if (linePartIndex < linePartsCount)
+                formatedString += ' '.repeat(rowSizes[linePartIndex] -  linePart.length);
         });
         formatedStrings.push(formatedString);
     });
@@ -51,40 +64,38 @@ function alignText(padding:number, delimiter:string, text:Array<string>):string[
 }
 
 function alignCurrentSelection(delimiter:string) {
+    // Grab 
     // TODO: Regex
     // TODO: multiple selections
-    let editor = vscode.window.activeTextEditor;
-    /*let selected:(vscode.Selection) = editor.selection;
-    let lineStart = selected.start.line
-    let lineStop = selected.end.line
-
-
-    let text:Array<string> = new Array<string>();
-    for (let x = lineStart; x <= lineStop; x++) {
-        let line = editor.document.lineAt(x).text
-        text.push(line);
+    interface editQueue {
+        range:vscode.Range,
+        fixedText:string
     }
-    // if we are at the first character of a new line, ignore it:
-    if (selected.end.character == 0) {
-        text.pop();
-        text.push('\n');
-    }*/
+    let editsQueue:editQueue[] = new Array<editQueue>();
 
-    let rangeStart = editor.selection.start;
-    let rangeEnd = editor.selection.end;
-    let range:vscode.Range = new vscode.Range(rangeStart, rangeEnd);
+    let editor = vscode.window.activeTextEditor;
+    let selection = editor.selection;
 
-    let text = editor.document.getText(range).split('\n');
-    let paddingText = text[0].match(/^\s*/)[0];
-    let padding = rangeStart.character + (paddingText.length);
+    // editor.selections.forEach((selection:vscode.Selection) => {
+        let rangeStart = selection.start;
+        let rangeEnd = selection.end;
+        let range = new vscode.Range(rangeStart, rangeEnd);
 
-    let fixedText = alignText(padding, delimiter, text);
+        let text = editor.document.getText(range).split('\n');
+        let padding = rangeStart.character
+    
+        let fixedText = alignText(padding, delimiter, text);
+        editsQueue.push({ range:range, fixedText:fixedText.join('\n') });
+    // });
 
     // Replace selected text with aligned text:
-    editor.edit( (builder:vscode.TextEditorEdit) => {
+    editsQueue.forEach( (queueItem) => {
         // TODO: Use current documents EOL preference?
-        builder.replace(range, fixedText.join('\n'))
-    })
+        // TODO: Currently only cascades first edit.
+        editor.edit( (builder:vscode.TextEditorEdit) => {
+            builder.replace(queueItem.range, queueItem.fixedText);
+        });
+    });
 }
 
 export function activate(context: vscode.ExtensionContext) {
