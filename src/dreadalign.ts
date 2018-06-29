@@ -58,7 +58,7 @@ function alignText(padding: number, delimiter: string, text: string[]): string[]
         linesSplit.push(lineParts);
     });
 
-    // Use the string parts to for a full string and push it to our results
+    // Use the string parts to form a full string and push it to our results
     // array:
     linesSplit.forEach((line: string[], lineIndex: number) => {
         // Retains the newly-formated string that combines each line part
@@ -94,6 +94,35 @@ function alignText(padding: number, delimiter: string, text: string[]): string[]
     return formatedStrings;
 }
 
+function getRangeFromSelection(selection: vscode.Selection): vscode.Range {
+    const lineStart: vscode.Position = selection.start;
+    const lineEnd: vscode.Position = selection.end;
+
+    // Ensure selection is more that 1 line:
+    if (lineEnd.isBeforeOrEqual(lineStart)) {
+        console.log("lineStart prior to lineEnd; failing...");
+        return null;
+    }
+
+    const editor = vscode.window.activeTextEditor;
+    const endLine: vscode.TextLine = editor.document.lineAt(lineEnd.line);
+
+    return new vscode.Range(lineStart.line, 0, lineEnd.line, endLine.range.end.character);
+}
+
+/**
+ * Returns a range of text between 2 Position objects in the current editor
+ * window, pulling the full first and last line.
+ * @param lineStart First 0-indexed line of the editor to pull
+ * @param lineEnd Last 0-indexed line of the editor to pull
+ */
+function getEditorText(selection: vscode.Selection): string[] {
+    const editor = vscode.window.activeTextEditor;
+    const range: vscode.Range = getRangeFromSelection(selection);
+
+    return editor.document.getText(range).split("\n");
+}
+
 /**
  * Attempts to sort and align strings based on the first line's leading white space and
  * delimiter string, and then reassemble them aligned based on indent level and using
@@ -102,39 +131,44 @@ function alignText(padding: number, delimiter: string, text: string[]): string[]
  * @param replacementDelimiter String to replace the delimiter with in aligned strings
  */
 function alignCurrentSelection(delimiter: string) {
-    // TODO: Regex
+    // TODO: Regexs
     // TODO: multiple selections
     // TODO: Handle multiple indents as seperate sections
-    interface IEditQueue {
-        range: vscode.Range;
-        fixedText: string;
-    }
-    const editsQueue: IEditQueue[] = new Array<IEditQueue>();
 
     const editor = vscode.window.activeTextEditor;
-    const selection = editor.selection;
 
-    const rangeStart = selection.start;
-    const rangeEnd = selection.end;
-    const range = new vscode.Range(rangeStart, rangeEnd);
-
-    const text = editor.document.getText(range).split("\n");
-    const padding = rangeStart.character;
-
-    const fixedText = alignText(padding, delimiter, text);
-
-    editsQueue.push({
-        fixedText: fixedText.join("\n"),
-        range,
+    // Since we are not adding lines, just editing, grabbing the line numbers
+    // of these lines should be fine. - Ozymandias, to TypeScript, 2018:
+    // TODO: Explore iterating over this to handle multi-selections
+    const selectedRanges: vscode.Range[] = [];
+    editor.selections.forEach( (s: vscode.Selection) => {
+        selectedRanges.push(getRangeFromSelection(s));
     });
 
-    // Replace selected text with aligned text:
-    editsQueue.forEach( (queueItem) => {
-        // TODO: Use current documents EOL preference?
-        // TODO: Currently only cascades first edit.
-        editor.edit( (builder: vscode.TextEditorEdit) => {
-            builder.replace(queueItem.range, queueItem.fixedText);
-        });
+    const selection = editor.selection;
+    const text = getEditorText(selection);
+
+    let padding: string = text[0].match(/^\s*/)[0];
+    let paddedText: string[] = [];
+    let line: number = 0;
+    let fixedText: string = "";
+    while (line < text.length) {
+        const currentLinePadding: string = text[line].match(/^\s*/)[0];
+        if (currentLinePadding !== padding) {
+            console.log(padding, padding.length);
+            fixedText += alignText(padding.length, delimiter, paddedText).join("\n");
+            paddedText = [];
+            padding = currentLinePadding;
+        }
+
+        paddedText.push(text[line]);
+        console.log(paddedText);
+        line++;
+    }
+    fixedText += alignText(padding.length, delimiter, paddedText).join("\n");
+
+    editor.edit( (builder: vscode.TextEditorEdit) => {
+        builder.replace(getRangeFromSelection(selection), fixedText);
     });
 }
 
