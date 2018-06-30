@@ -25,11 +25,16 @@ the delimiters.
 
 ## TODO
 
-* Support for single-instance of delimiter in range ala EasyAlign
 * Add support for "common" delimiters without specifying at run time (',', '=', etc), and allow them to be keybindable
+* Add support for "table" mode ala Emacs / OrgMode
 * Add support for regular expressions as a delimiter
 
 ## Release Notes
+
+### 0.0.3
+
+* Excensive refactoring of the code
+* Initial support for pre- and post-pending of text on delimiter
 
 ### 0.0.2
 
@@ -38,4 +43,4 @@ the delimiters.
 
 ### 0.0.1
 
-Initial release
+* Initial release

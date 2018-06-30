@@ -18,10 +18,12 @@
     ],
     "main": "./out/dreadalign",
     "contributes": {
-        "commands": [{
-            "command": "extension.loadDreadAlign",
-            "title": "DreadAlign: Align Text"
-        }]
+        "commands": [
+            {
+                "command": "extension.loadDreadAlign",
+                "title": "DreadAlign: Align Text"
+            }
+        ]
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",

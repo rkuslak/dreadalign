@@ -19,81 +19,81 @@
 import * as vscode from "vscode";
 
 /**
- * Iterates through a passed array of strings, splitting them on their
- * "delimiter", and returns a new array of aligned strings.
- * @param padding The "depth", in spaces, of indentation for the line
- * @param delimiter Character or string to use to split lines for alignment
- * @param text Array of strings to split and align
- * @returns Array of "aligned" text
+ * Splits a collection of strings on the passed delimiter, and recombines them
+ * into lines of text that are aligned on said delimiter.
+ * @param padding String of characters to "pad" the start of each line with.
+ * @param delimiter Delimiter string to split each line of text on.
+ * @param text Array of strings containing the full text to split.
+ * @param prepend String of text to append prior to delimiter when recombining.
+ * @param postpend String of text to append after the delimiter when combining.
  */
-function alignText(padding: number, delimiter: string, text: string[]): string[] {
-    // TODO: This is ugly. Too much logic in one method; split this up!
-    // Takes an array of strings and splits them via the delimiter string.
-    // each strimg will have the "padding" value added to it prior to return.
+function splitLineOnDelimiter(
+        padding: string,
+        delimiter: string,
+        text: string[],
+        prepend: string | null,
+        postpend: string | null): string[] {
+    // TODO: Currently assumes every line has delimiter; need to parse out which don't
+    // and ignore for line size logic and formatting
 
-    // TODO: Handle this as a configuration option:
-    // String that is used to "join" aligned segments of the line:
-    const alignmentSeperator: string = " " + delimiter + " ";
+    // Max size of each line segment:
+    const lineSizes: number[] = [];
 
-    const formatedStrings: string[] = [];
-    const linesSplit: string[][] = [];
-    const rowSizes: number[] = [];
+    // Lines which do not contain the delimiter and as such are "ignored"
+    const ignoredLines: number[] = [];
 
-    const paddingText: string = text[0].match(/^\s*/)[0];
-    padding = padding + (paddingText.length);
+    // Collection of lines trimmed and split on the delimiter:
+    const splitLines: string[][] = [];
 
-    // Create an array of strings split by the delimiter
-    text.forEach((line: string) => {
-        const lineParts: string[] = line.trim().split(delimiter);
-        if (lineParts.length > 1) {
-            lineParts.forEach((linePart: string, linePartIndex: number) => {
-                // Place size of current linePart in hash map as size if larger
-                // than current, or if there is no definition for this
-                // linePartIndex:
-                if (!rowSizes[linePartIndex]) { rowSizes[linePartIndex] = linePart.length; }
+    // Collection of text aligned and collated:
+    const finalText: string[] = [];
 
-                if (rowSizes[linePartIndex] < linePart.length) { rowSizes[linePartIndex] = linePart.length; }
+    text.forEach((line: string, idx: number) => {
+        const splitLine = line.trim().split(delimiter);
+        if (splitLine.length === 1) { ignoredLines.push(idx); }
+        splitLines.push(splitLine);
+    });
+
+    // Find max length for each line part:
+    splitLines.forEach((lineParts: string[]) => {
+        lineParts.forEach((linePart: string, idx: number) => {
+            if (!lineSizes[idx]) { lineSizes[idx] = linePart.length; }
+            if (linePart.length > lineSizes[idx]) { lineSizes[idx] = linePart.length; }
+        });
+    });
+
+    // Combine split lines with delimiter:
+    splitLines.forEach((lineParts: string[], idx: number) => {
+        let line: string = padding;
+
+        if (ignoredLines.indexOf(idx, 0)) {
+            line += padding + lineParts[0];
+        } else {
+            lineParts.forEach((linePart: string, splitIdx: number) => {
+                // Add line and padding if not the end of the line:
+                line += linePart;
+                if (splitIdx !== 0) {
+                    line += (prepend || "") + delimiter;
+                }
+
+                if (splitIdx < linePart.length) {
+                    line += " ".repeat(lineSizes[splitIdx] - linePart.length);
+                    line += postpend || "";
+                }
             });
         }
-        linesSplit.push(lineParts);
+
+        finalText.push(line);
     });
 
-    // Use the string parts to form a full string and push it to our results
-    // array:
-    linesSplit.forEach((line: string[], lineIndex: number) => {
-        // Retains the newly-formated string that combines each line part
-        // with the delimiter:
-        let formatedString: string = "";
-
-        // Do not push in on first line: use selection start as delimiter
-        if (lineIndex > 0) {
-            formatedString += " ".repeat(padding);
-        } else {
-            formatedString += paddingText;
-        }
-
-        const linePartsCount = line.length - 1;
-        line.forEach((linePart: string, linePartIndex: number) => {
-            linePart = linePart.trim();
-
-            // TODO: Configuration option for padding delimiter
-            // if (linePartIndex > 0) { formatedString += " " + delimiter + " "; }
-            if (linePartIndex > 0) {
-                formatedString += alignmentSeperator;
-            }
-            formatedString += linePart;
-
-            // Only append space if remaining elements to add to line:
-            if (linePartIndex < linePartsCount) {
-                formatedString += " ".repeat(rowSizes[linePartIndex] -  linePart.length);
-            }
-        });
-        formatedStrings.push(formatedString);
-    });
-
-    return formatedStrings;
+    return finalText;
 }
 
+/**
+ * Returns a range, starting at the start of the first line and ending on the
+ * last character of the last line, for a selection object.
+ * @param selection A VSCode.Selection object for the selection to pull data from.
+ */
 function getRangeFromSelection(selection: vscode.Selection): vscode.Range {
     const lineStart: vscode.Position = selection.start;
     const lineEnd: vscode.Position = selection.end;
@@ -113,8 +113,8 @@ function getRangeFromSelection(selection: vscode.Selection): vscode.Range {
 /**
  * Returns a range of text between 2 Position objects in the current editor
  * window, pulling the full first and last line.
- * @param lineStart First 0-indexed line of the editor to pull
- * @param lineEnd Last 0-indexed line of the editor to pull
+ * @param selection: A VSCode Selection object for the range of lines desired.
+ * @returns array of strings representing the text in the selection area.
  */
 function getEditorText(selection: vscode.Selection): string[] {
     const editor = vscode.window.activeTextEditor;
@@ -127,45 +127,54 @@ function getEditorText(selection: vscode.Selection): string[] {
  * Attempts to sort and align strings based on the first line's leading white space and
  * delimiter string, and then reassemble them aligned based on indent level and using
  * the passed replacement seperator or 'delimiter'.
- * @param delimiter Delimiting character to split the string on
- * @param replacementDelimiter String to replace the delimiter with in aligned strings
+ * @param delimiter Delimiting character to split the string on.
+ * @param replacementDelimiter String to replace the delimiter with in aligned strings.
  */
 function alignCurrentSelection(delimiter: string) {
-    // TODO: Regexs
-    // TODO: multiple selections
-    // TODO: Handle multiple indents as seperate sections
+    // TODO: Regexs?
 
     const editor = vscode.window.activeTextEditor;
 
     // Since we are not adding lines, just editing, grabbing the line numbers
     // of these lines should be fine. - Ozymandias, to TypeScript, 2018:
     // TODO: Explore iterating over this to handle multi-selections
-    const selectedRanges: vscode.Range[] = [];
-    editor.selections.forEach( (s: vscode.Selection) => {
-        selectedRanges.push(getRangeFromSelection(s));
-    });
+    // const selectedRanges: vscode.Range[] = [];
+    // editor.selections.forEach( (s: vscode.Selection) => {
+    //     selectedRanges.push(getRangeFromSelection(s));
+    // });
+    // console.log(selectedRanges);
 
     const selection = editor.selection;
     const text = getEditorText(selection);
 
+    // The indentation "padding" used on the current line:
     let padding: string = text[0].match(/^\s*/)[0];
+
+    // An array of strings at the same indentation level:
     let paddedText: string[] = [];
-    let line: number = 0;
+
+    // The singlar string containing the final end result:
     let fixedText: string = "";
+
+    let line: number = 0;
     while (line < text.length) {
-        const currentLinePadding: string = text[line].match(/^\s*/)[0];
+        const matches: string[] = text[line].match(/^\s*/);
+        const currentLinePadding: string = matches[0] || "";
+        // console.log("Matches:", matches[0]);
+
         if (currentLinePadding !== padding) {
             console.log(padding, padding.length);
-            fixedText += alignText(padding.length, delimiter, paddedText).join("\n");
+            // fixedText += alignText(padding.length, delimiter, paddedText).join("\n") + "\n";
+            fixedText += splitLineOnDelimiter(padding, delimiter, paddedText, null, null).join("\n") + "\n";
             paddedText = [];
             padding = currentLinePadding;
         }
 
         paddedText.push(text[line]);
-        console.log(paddedText);
         line++;
     }
-    fixedText += alignText(padding.length, delimiter, paddedText).join("\n");
+    // fixedText += alignText(padding.length, delimiter, paddedText).join("\n");
+    fixedText += splitLineOnDelimiter(padding, delimiter, paddedText, null, null).join("\n");
 
     editor.edit( (builder: vscode.TextEditorEdit) => {
         builder.replace(getRangeFromSelection(selection), fixedText);
@@ -190,7 +199,7 @@ export function activate(context: vscode.ExtensionContext) {
         };
 
         vscode.window.showInputBox(opts)
-            .then((delimiter) => {
+            .then((delimiter: string) => {
                 if (!delimiter) {
                     console.log("No delimiter, returning...");
                     return;
